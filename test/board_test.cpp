@@ -84,10 +84,13 @@ TEST(board, active_levels_are_what_the_osw_schematic_implies) {
     ASSERT_EQ(CHRG_ACTIVE, HIGH);         // TPS2115A STAT: high on USB power
 }
 
-// The divider guess, pinned so a change to it is a decision rather than a
-// drift. board.h says in as many words that it is unverified.
-TEST(board, the_battery_divider_guess_is_what_board_h_documents) {
-    ASSERT_EQ((int)(BATT_DIVIDER * 10), 20);
+// The battery scale, pinned so a change to it is a decision rather than a
+// drift. 19.1 is a ONE-POINT CALIBRATION -- a full cell read 0.44 V under
+// the old nominal 2.0, so the pin sees ~0.22 V at 4.20 V; board.h carries
+// the recipe for re-deriving it. If this fails, someone recalibrated:
+// update the number here as part of the same decision.
+TEST(board, the_battery_scale_is_the_calibrated_one) {
+    ASSERT_EQ((int)(BATT_SCALE * 10 + 0.5f), 191);
 }
 
 // The Light edition has no motor, and the Buzzer must know it: a PIN_VIB

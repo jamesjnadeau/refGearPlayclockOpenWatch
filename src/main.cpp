@@ -289,9 +289,9 @@ static bool checkBattery() {
     // it would otherwise be said every five seconds.
     if (!battUnreadableSaid) {
       battUnreadableSaid = true;
-      LOG("BATT: reading is below what the board could run at. The divider");
-      LOG("      scale or the ADC path is wrong, not the cell. See board.h --");
-      LOG("      BATT_DIVIDER is a guess until measured.");
+      LOG("BATT: reading is below what the board could run at. The scale");
+      LOG("      or the ADC path is wrong, not the cell. See board.h --");
+      LOG("      BATT_SCALE is a one-point calibration; re-run its recipe.");
     }
     return false;
   }

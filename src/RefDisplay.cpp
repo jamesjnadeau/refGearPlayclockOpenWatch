@@ -148,11 +148,16 @@ void drawBody(const View &v) {
 } // namespace
 
 float batteryVolts() {
-  // The ESP32 core's calibrated read, in millivolts at the pin, undone
-  // through the divider. board.h says in as many words that BATT_DIVIDER is a
-  // guess until measured; BattGuard is what makes that guess safe to ship.
+  // The ESP32 core's calibrated read, in millivolts at the pin, scaled up to
+  // cell volts through BATT_SCALE -- which is a one-point calibration against
+  // a full cell, not a resistor ratio; the whole story is in board.h.
+  //
+  // ONE READ, DELIBERATELY. BATT_SCALE was calibrated against exactly this
+  // measurement method, and any "improvement" here (oversampling, a settling
+  // read thrown away) changes what the pin reads and silently invalidates
+  // the calibration. Change this and board.h's recipe together or not at all.
   const uint32_t mv = analogReadMilliVolts(PIN_BATT_ADC);
-  return (mv / 1000.0f) * BATT_DIVIDER;
+  return (mv / 1000.0f) * BATT_SCALE;
 }
 
 extern const int16_t DIGIT_PAIR_W = STYLE_MED.w * 2 + STYLE_MED.gap;

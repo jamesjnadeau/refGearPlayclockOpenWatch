@@ -43,3 +43,24 @@ if grep -qE "^src/.*(warning|error)" /tmp/pio-build.log; then
   exit 1
 fi
 echo "  no warnings in src/"
+
+echo
+echo "=== motor-path build (playclock_vib)"
+# The Light has no motor, so the default build never compiles the real
+# Buzzer. This environment defines REF_VIB_GPIO purely so the pattern player
+# is compiled and warning-checked -- a supported configuration that no build
+# touches is one that quietly stops compiling. Same assertions as above.
+pio run -e playclock_vib 2>&1 | tee /tmp/pio-vib-build.log \
+  | grep -E "^(RAM|Flash):" || true
+if ! grep -qE "^(RAM|Flash):" /tmp/pio-vib-build.log; then
+  echo "FAIL: the motor-path build produced no size summary, so it did not" >&2
+  echo "      run. Last lines of /tmp/pio-vib-build.log:" >&2
+  tail -5 /tmp/pio-vib-build.log >&2
+  exit 1
+fi
+if grep -qE "^src/.*(warning|error)" /tmp/pio-vib-build.log; then
+  echo "FAIL: warnings in our own sources (motor path):" >&2
+  grep -E "^src/.*(warning|error)" /tmp/pio-vib-build.log >&2
+  exit 1
+fi
+echo "  no warnings in src/"

@@ -90,13 +90,19 @@ BOOT strap) and tap RESET to enter the serial bootloader, then
 - Pins, active levels and their reasoning are in `src/board.h`, transcribed
   from open-smartwatch-os's `LIGHT_EDITION_V3_3.h`. The three buttons have
   **mixed active levels** (SELECT presses LOW, UP/DOWN press HIGH).
-- The battery divider's volts-per-count is **unverified** (`BATT_DIVIDER` in
-  `board.h`); the shipped OSW firmware doesn't trust it into volts either.
-  The battery guard's arming rule is what makes that safe: a divider that
-  reads low forever can warn forever, but can never sleep the watch.
+- The battery reading is a **one-point calibration** (`BATT_SCALE` in
+  `board.h`, measured against a full cell on real hardware; the shipped OSW
+  firmware doesn't trust this divider into volts at all). The sense node is
+  the post-mux rail: on battery it reads the cell; on USB it reads USB
+  (~4.6 V) and the gauge just clamps at full. The recalibration recipe is in
+  `board.h`, and the battery guard's arming rule keeps a wrong scale safe:
+  a reading that never looks healthy can warn, but can never sleep the watch.
 - The Light edition has **no vibration motor**, so every buzz is a no-op
   (reported once at boot). An OSW edition with a motor gets the parent's
-  tick/warn/expire patterns back by setting `PIN_VIB` in `board.h`.
+  tick/warn/expire patterns back by building with `-D REF_VIB_GPIO=<pin>`
+  (see `board.h`). The `playclock_vib` environment exists purely so
+  `./check.sh` compiles and warning-checks that motor path on every run —
+  don't flash it onto a Light.
 
 **Nothing here has been run on a physical watch yet.** The host tests pass
 and the target build compiles clean; button feel, panel timing, sleep

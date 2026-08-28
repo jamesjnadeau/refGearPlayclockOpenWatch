@@ -119,7 +119,19 @@
 // Buzzer.cpp compiles to a no-op and main.cpp says so once at boot. An
 // edition with a motor sets this to its GPIO and gets the parent's tick /
 // warn / expire patterns back, driven as timed pulses.
+//
+// REF_VIB_GPIO IS THE COMPILE GATE FOR THAT PATH. Without it, the real
+// Buzzer implementation is dead code no build ever touches -- the classic
+// way a "supported" configuration quietly stops compiling. check.sh builds
+// the playclock_vib environment, which defines REF_VIB_GPIO purely so the
+// motor path is compiled and warning-checked on every run; the pin it names
+// there is a stand-in, not a hardware claim. A real motor edition passes its
+// actual GPIO the same way (or edits the 0 below).
+#ifdef REF_VIB_GPIO
+#define PIN_VIB          REF_VIB_GPIO
+#else
 #define PIN_VIB          0
+#endif
 #define VIB_ACTIVE       HIGH
 
 // ---- power -----------------------------------------------------------------
@@ -132,19 +144,43 @@
 #define CHRG_ACTIVE      HIGH
 
 // ---- battery sense ---------------------------------------------------------
-// GPIO 25 (ADC2_CH8) behind the OSW's divider. *** THE SCALE OF THIS READING
-// IS UNVERIFIED, AND THE SHIPPED OSW FIRMWARE DOES NOT TRUST IT EITHER: *** it
-// never converts to volts at all -- it self-calibrates raw counts against the
-// lowest and highest values it has ever seen. This port keeps the parent's
-// volts-based gauge and guard, reads the pin through the ESP32 core's
-// calibrated analogReadMilliVolts(), and states plainly that BATT_DIVIDER is
-// a guess until someone measures the divider against a bench meter. The
-// reason that guess is safe to ship is BattGuard's arming rule: a reading
-// that never looks like a healthy cell can warn, but can never sleep the
-// watch. See BattGuard.h.
+// GPIO 25 (ADC2_CH8) behind the OSW's divider.
+//
+// *** BATT_SCALE IS A ONE-POINT CALIBRATION, NOT A RESISTOR RATIO. *** The
+// first guess here was 2.0 -- a nominal half divider -- and a real watch
+// promptly disproved it: a fully charged cell (~4.20 V) displayed as 0.44 V,
+// meaning the pin was reading ~0.22 V. The OSW's sense network attenuates
+// far more than any resistor ratio suggests (its source impedance is more
+// than the ESP32's sample-and-hold can charge, the same disease the parent
+// board documented), which is also why the shipped OSW firmware never
+// converts this reading to volts at all -- it self-calibrates raw counts
+// against the extremes it has seen. This port keeps the parent's volts-based
+// gauge and guard, so the conversion is calibrated instead:
+//
+//     4.20 V actual / 0.22 V at the pin  =  19.1     (measured 2026-08-28)
+//
+// A SECOND OBSERVATION SAYS WHAT THE NODE ACTUALLY IS. The same watch ON USB
+// read 0.24 V at the pin -- ~4.6 V through this scale, which is not a LiPo
+// voltage at all: it is USB's 5 V minus the TPS2115A's drop. So the divider
+// senses the POST-MUX RAIL, not the cell directly: on battery that rail IS
+// the cell and the number means what the gauge says; on USB it is USB, the
+// gauge clamps at full, and the reading says nothing about the cell -- which
+// is fine, because BattGuard already discounts everything while CHRG_ACTIVE.
+//
+// TO RE-CALIBRATE: charge full, UNPLUG, read the About screen's voltage,
+// and multiply:  new_scale = old_scale * 4.20 / displayed. On battery only
+// -- a plugged-in reading calibrates against USB, per the above. Keep the
+// read path in RefDisplay::batteryVolts() unchanged while doing it -- the
+// scale is only as good as the measurement method it was calibrated against.
+//
+// WHAT THIS CALIBRATION DOES NOT PROMISE: linearity. One point pins the top
+// of the curve; how faithfully a sagging cell tracks through 3.4 V is
+// unmeasured, and BattGuard's arming rule is what keeps that safe -- a
+// reading that never looks like a healthy cell can warn, but can never
+// sleep the watch. See BattGuard.h.
 //
 // ADC2 note: ADC2 is unusable while Wi-Fi runs. This firmware never starts
 // Wi-Fi -- there is nothing to sync (the parent deleted its radio on purpose
 // and this port inherits the decision) -- so the channel is always available.
 #define PIN_BATT_ADC     25
-#define BATT_DIVIDER     2.0f
+#define BATT_SCALE       19.1f
